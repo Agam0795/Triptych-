@@ -1,0 +1,96 @@
+#include <Adafruit_SSD1306.h>     // Include the Adafruit SSD1306 library to interact with the display
+ 
+#define SCREEN_WIDTH 128          // Set the width and height of the display in pixels
+#define SCREEN_HEIGHT 64
+#define OLED_RESET -1             // Set the OLED reset pin to -1 if it shares the Arduino reset pin
+#define SCREEN_ADDRESS 0x3C       // Set the address of the screen as specified in its datasheet
+ 
+// Create an Adafruit_SSD1306 object called display
+Adafruit_SSD1306 display(SCREEN_WIDTH, SCREEN_HEIGHT, &Wire, OLED_RESET);
+ 
+const int AirValue = 543;         // Analog Value when Sensor is exposed to dry air
+const int WaterValue = 301;       // Analog Value when Sensor is kept in water
+const int SensorPin = A0;         // Analog pin where the sensor is connected
+ 
+// Variables to hold sensor values
+int soilMoistureValue = 0;
+int soilmoisturepercent = 0;
+int relaypin = 2;                 // Pin where the relay is connected
+ 
+void setup()
+{
+  Serial.begin(9600);              // Begin serial communication at 9600 bps
+  pinMode(relaypin, OUTPUT);      // Set the relay pin as an output
+  digitalWrite(relaypin, LOW);    // Start with the relay off
+  delay(500);
+ 
+  // Start the display, looping forever if it fails
+  if (!display.begin(SSD1306_SWITCHCAPVCC, SCREEN_ADDRESS)) {
+    Serial.println(F("SSD1306 allocation failed"));
+    for (;;);
+  }
+ 
+  display.clearDisplay();     // Clear the display and display the cleared screen
+  display.display();
+  delay(500);
+}
+ 
+// Function to update the display and control the relay based on soil moisture
+void updateDisplayAndRelay()
+{
+ 
+  const char* motorStatus = (soilmoisturepercent <= 40) ? "ON" : "OFF";     // Set the motor status based on the soil moisture
+ 
+ 
+  if (soilmoisturepercent <= 40)      // Control the relay based on the soil moisture
+  {
+    digitalWrite(relaypin, HIGH);
+  }
+  else
+  {
+    digitalWrite(relaypin, LOW);
+  }
+ 
+  // Clear the display and set the text color
+  display.clearDisplay();
+  display.setTextColor(SSD1306_WHITE);
+ 
+  // Display the soil moisture
+  display.setCursor(20, 0);
+  display.setTextSize(1);
+  display.print("Soil Moisture: ");
+  display.setCursor(50, 20);
+  display.setTextSize(2);
+  display.print(soilmoisturepercent);
+  display.setTextSize(1);
+  display.print("%");
+ 
+  // Display the motor status
+  display.setCursor(30, 45);
+  display.setTextSize(1);
+  display.print("Motor: ");
+  display.print(motorStatus);
+ 
+  // Update the display with the new text
+  display.display();
+ 
+  // Print the soil moisture and motor status to the serial monitor
+  Serial.print("Soil moisture: ");
+  Serial.print(soilmoisturepercent);
+  Serial.println("%");
+  Serial.print("Motor is ");
+  Serial.println(motorStatus);
+ 
+  delay(250);
+}
+ 
+void loop()
+{
+  soilMoistureValue = analogRead(SensorPin);      // Read the value from the soil moisture sensor
+  Serial.println(soilMoistureValue);              // Print the sensor value to the serial monitor
+  soilmoisturepercent = map(soilMoistureValue, AirValue, WaterValue, 0, 100);     // Map the sensor value to a soil moisture percentage
+  soilmoisturepercent = constrain(soilmoisturepercent, 0, 100);       // Ensure soilmoisturepercent is between 0 and 100
+ 
+  updateDisplayAndRelay();                       // Update the display and control the relay based on the soil moisture
+  delay(100);
+}
